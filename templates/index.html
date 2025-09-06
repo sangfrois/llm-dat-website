@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divergent Association Task - Research Visualizations</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Divergent Association Task</h1>
+            <p class="subtitle">Interactive Research Visualizations</p>
+            <p class="description">
+                Explore the creativity scores from the Divergent Association Task (DAT) across different AI models and human participants. 
+                These visualizations present scientifically rigorous analysis of creativity assessment data.
+            </p>
+        </header>
+
+        <main>
+            <section class="plot-section">
+                <h2>Distribution Analysis</h2>
+                <p class="plot-description">
+                    Ridge plot showing the distribution of creativity scores across models, with mean indicators and overlapping density curves.
+                </p>
+                <div id="ridge-plot" class="plot-container">
+                    <div class="loading">Loading ridge plot...</div>
+                </div>
+            </section>
+
+            <section class="plot-section">
+                <h2>Mean Comparison</h2>
+                <p class="plot-description">
+                    Horizontal bar chart comparing mean creativity scores with standard error bars across all models.
+                </p>
+                <div id="bar-plot" class="plot-container">
+                    <div class="loading">Loading bar plot...</div>
+                </div>
+            </section>
+
+            <section class="plot-section">
+                <h2>Statistical Analysis</h2>
+                <p class="plot-description">
+                    Combined view showing mean scores and pairwise statistical comparisons with t-values and significance indicators.
+                </p>
+                <div id="heatmap-plot" class="plot-container">
+                    <div class="loading">Loading heatmap...</div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Data from the Divergent Association Task (DAT) - <a href="https://datcreativity.com" target="_blank">datcreativity.com</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Load ridge plot
+        fetch('/ridge_plot')
+            .then(response => response.json())
+            .then(data => {
+                Plotly.newPlot('ridge-plot', data.data, data.layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'autoScale2d'],
+                    displaylogo: false
+                });
+            })
+            .catch(error => {
+                document.getElementById('ridge-plot').innerHTML = '<div class="error">Error loading ridge plot</div>';
+                console.error('Error:', error);
+            });
+
+        // Load bar plot
+        fetch('/bar_plot')
+            .then(response => response.json())
+            .then(data => {
+                Plotly.newPlot('bar-plot', data.data, data.layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'autoScale2d'],
+                    displaylogo: false
+                });
+            })
+            .catch(error => {
+                document.getElementById('bar-plot').innerHTML = '<div class="error">Error loading bar plot</div>';
+                console.error('Error:', error);
+            });
+
+        // Load heatmap plot
+        fetch('/heatmap_plot')
+            .then(response => response.json())
+            .then(data => {
+                Plotly.newPlot('heatmap-plot', data.data, data.layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'autoScale2d'],
+                    displaylogo: false
+                });
+            })
+            .catch(error => {
+                document.getElementById('heatmap-plot').innerHTML = '<div class="error">Error loading heatmap</div>';
+                console.error('Error:', error);
+            });
+    </script>
+</body>
+</html>
