@@ -94,8 +94,7 @@ def create_ridge_plot(results_df):
             x=0.5
         ),
         xaxis=dict(
-            title='<b>Creativity score</b>',
-            titlefont=dict(size=16, color='white'),
+            title=dict(text='<b>Creativity score</b>', font=dict(size=16, color='white')),
             tickfont=dict(size=14, color='white'),
             range=[20, 100],
             gridcolor='rgba(255,255,255,0.1)',
@@ -178,8 +177,7 @@ def create_horizontal_bar_plot(results_df):
             pad=dict(t=15)
         ),
         xaxis=dict(
-            title='<b>Creativity score</b>',
-            titlefont=dict(size=16, color='white'),
+            title=dict(text='<b>Creativity score</b>', font=dict(size=16, color='white')),
             tickfont=dict(size=14, color='white'),
             range=[60, 90],
             gridcolor='rgba(255,255,255,0.3)',
@@ -187,8 +185,7 @@ def create_horizontal_bar_plot(results_df):
             gridwidth=1
         ),
         yaxis=dict(
-            title='<b>Model</b>',
-            titlefont=dict(size=16, color='white'),
+            title=dict(text='<b>Model</b>', font=dict(size=16, color='white')),
             tickfont=dict(size=14, color='white'),
             categoryorder='array',
             categoryarray=list(order)
@@ -293,8 +290,7 @@ def create_heatmap_plot(results_df):
         zmin=-vmax,
         zmax=vmax,
         colorbar=dict(
-            title='<b>t-values</b>',
-            titlefont=dict(size=14, color='white'),
+            title=dict(text='<b>t-values</b>', font=dict(size=14, color='white')),
             tickfont=dict(size=12, color='white'),
             x=1.02
         ),
@@ -319,8 +315,7 @@ def create_heatmap_plot(results_df):
         row=1, col=1
     )
     fig.update_yaxes(
-        title='<b>Mean</b>',
-        titlefont=dict(size=14, color='white'),
+        title=dict(text='<b>Mean</b>', font=dict(size=14, color='white')),
         tickfont=dict(size=12, color='white'),
         range=[60, 90],
         row=1, col=1
