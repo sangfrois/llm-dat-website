@@ -31,6 +31,9 @@ def create_ridge_plot(results_df):
     for i, model in enumerate(order):
         model_data = df[df['Model'] == model]['Score'].values
         
+        if len(model_data) == 0:
+            continue
+            
         # Create KDE using scipy
         kde = stats.gaussian_kde(model_data, bw_method=1.0)  # bw_adjust=1 equivalent
         x_range = np.linspace(20, 100, 200)
@@ -40,26 +43,27 @@ def create_ridge_plot(results_df):
         density_normalized = density / density.max() * 0.8
         y_offset = i * 1.2
         
-        # Add filled KDE area
-        fig.add_trace(go.Scatter(
-            x=x_range,
-            y=density_normalized + y_offset,
-            fill='tonexty' if i > 0 else 'tozeroy',
-            fillcolor=colors[i],
-            line=dict(color='white', width=2),
-            name=model,
-            showlegend=False,
-            hovertemplate=f'<b>{model}</b><br>Score: %{{x:.1f}}<br>Density: %{{y:.3f}}<extra></extra>'
-        ))
-        
-        # Add baseline (refline equivalent)
+        # Add baseline first (refline equivalent)
         fig.add_trace(go.Scatter(
             x=[20, 100],
             y=[y_offset, y_offset],
             mode='lines',
             line=dict(color=colors[i], width=2),
             showlegend=False,
-            hoverinfo='skip'
+            hoverinfo='skip',
+            fill=None
+        ))
+        
+        # Add filled KDE area
+        fig.add_trace(go.Scatter(
+            x=x_range,
+            y=density_normalized + y_offset,
+            fill='tonexty',
+            fillcolor=colors[i],
+            line=dict(color='white', width=2),
+            name=model,
+            showlegend=False,
+            hovertemplate=f'<b>{model}</b><br>Score: %{{x:.1f}}<br>Density: %{{y:.3f}}<extra></extra>'
         ))
         
         # Add mean line (vertical dashed line)
@@ -115,7 +119,13 @@ def create_horizontal_bar_plot(results_df):
     """Create horizontal bar plot exactly as in original code"""
     # Filter data exactly as in original code
     df = results_df.loc[(results_df['Strategy']=='Original instructions') &
-                        (results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull())]
+                        ((results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull()))]
+    
+    if df.empty:
+        # Return empty figure if no data
+        fig = go.Figure()
+        fig.update_layout(title="No data available")
+        return fig
     
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
@@ -196,7 +206,13 @@ def create_heatmap_plot(results_df):
     """Create heatmap plot using the existing create_heatmap function logic"""
     # Filter data exactly as in original code
     df = results_df.loc[(results_df['Strategy']=='Original instructions') &
-                        (results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull())]
+                        ((results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull()))]
+    
+    if df.empty:
+        # Return empty figure if no data
+        fig = go.Figure()
+        fig.update_layout(title="No data available")
+        return fig
     
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
