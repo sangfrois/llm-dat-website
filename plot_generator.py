@@ -69,16 +69,16 @@ def create_ridge_plot(results_df):
     
     # Remove axes details that don't play well with overlap
     g.set_titles("")
-    # Set the subplots to overlap - less aggressive for web
-    g.figure.subplots_adjust(hspace=-.5)
+    # Set the subplots to overlap - more aggressive like original
+    g.figure.subplots_adjust(hspace=-.7)
     g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
     g.set(xlim=(20, 100))
     
-    # Convert matplotlib figure to Plotly with proper aspect ratio
+    # Convert matplotlib figure to Plotly with proper aspect ratio and centering
     buf = io.BytesIO()
-    g.savefig(buf, format='png', dpi=100, bbox_inches='tight', 
-              facecolor='none', edgecolor='none')
+    g.savefig(buf, format='png', dpi=120, bbox_inches='tight', 
+              facecolor='none', edgecolor='none', pad_inches=0.1)
     buf.seek(0)
     
     # Convert to base64 for embedding in Plotly
@@ -88,16 +88,18 @@ def create_ridge_plot(results_df):
     # Create Plotly figure with the seaborn image
     fig = go.Figure()
     
-    # Add the image with proper sizing
+    # Add the image with proper sizing and centering
     fig.add_layout_image(
         dict(
             source=f"data:image/png;base64,{img_b64}",
             xref="paper", yref="paper",
-            x=0, y=1,
-            sizex=1, sizey=1,
-            sizing="contain",  # Use contain instead of stretch
+            x=0.5, y=0.5,
+            sizex=0.95, sizey=0.95,
+            sizing="contain",  # Use contain to preserve aspect ratio
             opacity=1,
-            layer="below"
+            layer="below",
+            xanchor="center",
+            yanchor="middle"
         )
     )
     
@@ -123,8 +125,8 @@ def create_ridge_plot(results_df):
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white'),
-        height=len(order) * 60 + 120,  # Adjusted height
-        margin=dict(l=20, r=20, t=80, b=20)  # Tighter margins
+        height=len(order) * 70 + 140,  # Better height for overlapping ridges
+        margin=dict(l=30, r=30, t=90, b=30)  # Balanced margins for centering
     )
     
     return fig
