@@ -31,8 +31,9 @@ def create_ridge_plot(results_df):
     
     fig = go.Figure()
     
-    # Create ridge plot
-    for i, model in enumerate(order):
+    # Create ridge plot - reverse order for display (highest scores at top)
+    reversed_order = list(reversed(order))
+    for i, model in enumerate(reversed_order):
         model_data = df[df['Model'] == model]['Score'].values
         
         if len(model_data) == 0:
@@ -40,23 +41,32 @@ def create_ridge_plot(results_df):
             
         # Create KDE using scipy with fewer points for performance
         kde = stats.gaussian_kde(model_data, bw_method=1.0)
-        x_range = np.linspace(20, 100, 100)  # Reduced from 200 to 100 for performance
+        x_range = np.linspace(20, 100, 100)
         density = kde(x_range)
         
         # Normalize density for ridge effect
         density_normalized = density / density.max() * 0.8
         y_offset = i * 1.2
         
-        # Create baseline points for proper fill
-        baseline_x = np.concatenate([[20], x_range, [100]])
-        baseline_y = np.concatenate([[y_offset], density_normalized + y_offset, [y_offset]])
+        # Get color for this model from original order
+        original_idx = list(order).index(model)
+        model_color = colors[original_idx]
         
-        # Add filled area with proper baseline
+        # Add filled area using tonexty with baseline
         fig.add_trace(go.Scatter(
-            x=baseline_x,
-            y=baseline_y,
-            fill='tozeroy',
-            fillcolor=colors[i],
+            x=[20, 100],
+            y=[y_offset, y_offset],
+            mode='lines',
+            line=dict(color='rgba(0,0,0,0)', width=0),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=x_range,
+            y=density_normalized + y_offset,
+            fill='tonexty',
+            fillcolor=model_color,
             line=dict(color='white', width=2),
             name=model,
             showlegend=False,
@@ -68,7 +78,7 @@ def create_ridge_plot(results_df):
             x=[20, 100],
             y=[y_offset, y_offset],
             mode='lines',
-            line=dict(color=colors[i], width=3),
+            line=dict(color=model_color, width=3),
             showlegend=False,
             hoverinfo='skip'
         ))
@@ -90,7 +100,7 @@ def create_ridge_plot(results_df):
             y=y_offset + 0.2,
             text=f'<b>{model}</b>',
             showarrow=False,
-            font=dict(size=16, color=colors[i]),
+            font=dict(size=16, color=model_color),
             xanchor='left'
         )
     
@@ -115,7 +125,7 @@ def create_ridge_plot(results_df):
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white'),
-        height=len(order) * 80 + 100,
+        height=len(reversed_order) * 80 + 100,
         margin=dict(l=50, r=50, t=80, b=80)
     )
     
@@ -199,7 +209,7 @@ def create_horizontal_bar_plot(results_df):
             title=dict(text='<b>Model</b>', font=dict(size=16, color='white')),
             tickfont=dict(size=14, color='white'),
             categoryorder='array',
-            categoryarray=list(order)
+            categoryarray=list(reversed(order))
         ),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
