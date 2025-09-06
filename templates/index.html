@@ -61,6 +61,7 @@
         fetch('/ridge_plot')
             .then(response => response.json())
             .then(data => {
+                document.getElementById('ridge-plot').innerHTML = '';
                 Plotly.newPlot('ridge-plot', data.data, data.layout, {
                     responsive: true,
                     displayModeBar: true,
@@ -77,6 +78,7 @@
         fetch('/bar_plot')
             .then(response => response.json())
             .then(data => {
+                document.getElementById('bar-plot').innerHTML = '';
                 Plotly.newPlot('bar-plot', data.data, data.layout, {
                     responsive: true,
                     displayModeBar: true,
@@ -93,6 +95,7 @@
         fetch('/heatmap_plot')
             .then(response => response.json())
             .then(data => {
+                document.getElementById('heatmap-plot').innerHTML = '';
                 Plotly.newPlot('heatmap-plot', data.data, data.layout, {
                     responsive: true,
                     displayModeBar: true,

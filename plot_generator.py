@@ -38,36 +38,39 @@ def create_ridge_plot(results_df):
         if len(model_data) == 0:
             continue
             
-        # Create KDE using scipy
-        kde = stats.gaussian_kde(model_data, bw_method=1.0)  # bw_adjust=1 equivalent
-        x_range = np.linspace(20, 100, 200)
+        # Create KDE using scipy with fewer points for performance
+        kde = stats.gaussian_kde(model_data, bw_method=1.0)
+        x_range = np.linspace(20, 100, 100)  # Reduced from 200 to 100 for performance
         density = kde(x_range)
         
         # Normalize density for ridge effect
         density_normalized = density / density.max() * 0.8
         y_offset = i * 1.2
         
-        # Add baseline first (refline equivalent)
-        fig.add_trace(go.Scatter(
-            x=[20, 100],
-            y=[y_offset, y_offset],
-            mode='lines',
-            line=dict(color=colors[i], width=2),
-            showlegend=False,
-            hoverinfo='skip',
-            fill=None
-        ))
+        # Create baseline points for proper fill
+        baseline_x = np.concatenate([[20], x_range, [100]])
+        baseline_y = np.concatenate([[y_offset], density_normalized + y_offset, [y_offset]])
         
-        # Add filled KDE area
+        # Add filled area with proper baseline
         fig.add_trace(go.Scatter(
-            x=x_range,
-            y=density_normalized + y_offset,
-            fill='tonexty',
+            x=baseline_x,
+            y=baseline_y,
+            fill='tozeroy',
             fillcolor=colors[i],
             line=dict(color='white', width=2),
             name=model,
             showlegend=False,
-            hovertemplate=f'<b>{model}</b><br>Score: %{{x:.1f}}<br>Density: %{{y:.3f}}<extra></extra>'
+            hovertemplate=f'<b>{model}</b><br>Score: %{{x:.1f}}<extra></extra>'
+        ))
+        
+        # Add baseline line
+        fig.add_trace(go.Scatter(
+            x=[20, 100],
+            y=[y_offset, y_offset],
+            mode='lines',
+            line=dict(color=colors[i], width=3),
+            showlegend=False,
+            hoverinfo='skip'
         ))
         
         # Add mean line (vertical dashed line)
@@ -268,22 +271,6 @@ def create_heatmap_plot(results_df):
         lambda x: "***" if x < 0.001 else "**" if x < 0.01 else "*" if x < 0.05 else ""
     )
     
-    # Create annotations combining stars and t-values
-    annotations = []
-    for i in range(len(heatmap_data.index)):
-        for j in range(len(heatmap_data.columns)):
-            if i <= j:  # Upper triangle mask
-                continue
-            tval = heatmap_data.iloc[i, j]
-            stars = pval_stars.iloc[i, j]
-            text = f"{stars}<br>{tval:.2f}"
-            annotations.append(dict(
-                x=j, y=i,
-                text=text,
-                showarrow=False,
-                font=dict(color='white', size=12)
-            ))
-    
     # Create masked heatmap data (upper triangle)
     masked_data = heatmap_data.values.copy()
     for i in range(len(masked_data)):
@@ -292,6 +279,19 @@ def create_heatmap_plot(results_df):
                 masked_data[i, j] = np.nan
     
     vmax = np.nanmax(np.abs(masked_data))
+    
+    # Create text annotations for heatmap
+    text_annotations = []
+    for i in range(len(heatmap_data.index)):
+        row_text = []
+        for j in range(len(heatmap_data.columns)):
+            if i <= j:  # Upper triangle mask
+                row_text.append('')
+            else:
+                tval = heatmap_data.iloc[i, j]
+                stars = pval_stars.iloc[i, j]
+                row_text.append(f"{stars}<br>{tval:.2f}")
+        text_annotations.append(row_text)
     
     fig.add_trace(go.Heatmap(
         z=masked_data,
@@ -307,6 +307,9 @@ def create_heatmap_plot(results_df):
             x=1.02
         ),
         showscale=True,
+        text=text_annotations,
+        texttemplate='%{text}',
+        textfont=dict(color='white', size=10),
         hovertemplate='<b>%{y} vs %{x}</b><br>t-value: %{z:.2f}<extra></extra>'
     ), row=1, col=2)
     
@@ -346,17 +349,6 @@ def create_heatmap_plot(results_df):
         title='',
         row=1, col=2
     )
-    
-    # Add annotations to heatmap
-    for annotation in annotations:
-        fig.add_annotation(
-            x=annotation['x'],
-            y=annotation['y'],
-            text=annotation['text'],
-            showarrow=False,
-            font=annotation['font'],
-            row=1, col=2
-        )
     
     # Update subplot titles
     fig.update_annotations(font=dict(size=16, color='white'))
