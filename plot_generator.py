@@ -17,10 +17,14 @@ def create_ridge_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
-    # Get order and colors (rocket_r palette equivalent)
+    # Get order and colors (rocket_r palette equivalent) - ASCENDING = LOW TO HIGH SCORES
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
-    colors = [rocket_r_colors[int(i * (len(rocket_r_colors)-1) / (len(order)-1))] for i in range(len(order))]
+    # Map colors to order index to maintain consistency
+    colors = []
+    for i, model in enumerate(order):
+        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+        colors.append(rocket_r_colors[color_idx])
     
     # Calculate means for vertical lines
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
@@ -129,14 +133,18 @@ def create_horizontal_bar_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
+    # ASCENDING = LOW TO HIGH SCORES - maintain exact same order logic
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
     
-    # Create palette exactly as in original (rocket_r)
+    # Create palette exactly as in original (rocket_r) - maintain color consistency
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
-    colors = [rocket_r_colors[int(i * (len(rocket_r_colors)-1) / (len(order)-1))] for i in range(len(order))]
+    colors = []
+    for i, model in enumerate(order):
+        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+        colors.append(rocket_r_colors[color_idx])
     
-    # Special color for Human (100k) as in original
+    # Special color for Human (100k) as in original - EXACT SAME LOGIC
     final_colors = []
     for i, model in enumerate(order):
         if model == 'Human (100k)':
@@ -214,6 +222,7 @@ def create_heatmap_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
+    # ASCENDING = LOW TO HIGH SCORES - maintain exact same order logic
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
     mean_conf, pvals_table, tvals_table, cohen_d_table = analyze_results(df, 'Model', order)
     
@@ -225,9 +234,12 @@ def create_heatmap_plot(results_df):
         horizontal_spacing=0.1
     )
     
-    # Bar plot (left subplot)
+    # Bar plot (left subplot) - maintain color consistency
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
-    colors = [rocket_r_colors[int(i * (len(rocket_r_colors)-1) / (len(order)-1))] for i in range(len(order))]
+    colors = []
+    for i, model in enumerate(order):
+        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+        colors.append(rocket_r_colors[color_idx])
     
     for i, model in enumerate(order):
         model_data = mean_conf[mean_conf['Model'] == model]
