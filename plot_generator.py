@@ -6,9 +6,12 @@ from plotly.subplots import make_subplots
 from multiple_test import analyze_results
 import seaborn as sns
 from scipy import stats
+import matplotlib.pyplot as plt
+import io
+import base64
 
 def create_ridge_plot(results_df):
-    """Create a ridge plot using Plotly equivalent to the seaborn version"""
+    """Create a ridge plot using seaborn exactly like the static version"""
     # Filter data exactly as in original code
     df = results_df.loc[(results_df['Strategy']=='Original instructions') &
                         (results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull())]
@@ -17,93 +20,88 @@ def create_ridge_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
-    # Get order and colors (rocket_r palette equivalent) - ASCENDING = LOW TO HIGH SCORES
+    # Get models, palette and order exactly as in static version
+    models = results_df['Model'].unique()
+    pal = sns.color_palette("rocket_r", len(models))
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
-    rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
-    # Map colors to order index to maintain consistency
-    colors = []
-    for i, model in enumerate(order):
-        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
-        colors.append(rocket_r_colors[color_idx])
+    
+    # Set up matplotlib with dark theme for web
+    plt.style.use('dark_background')
+    
+    # Initialize the FacetGrid object exactly as in static version
+    g = sns.FacetGrid(df, row="Model", hue="Model", aspect=12, height=0.8, 
+                      row_order=order, palette=pal, hue_order=order)
+    
+    # Make transparent background
+    for ax in g.axes.flat:
+        ax.set_facecolor('none')
+    
+    # Draw the densities exactly as in static version
+    g.map(sns.kdeplot, "Score",
+          bw_adjust=1, clip_on=False,
+          fill=True, alpha=0.8, linewidth=1.5)
+    g.map(sns.kdeplot, "Score", clip_on=False, color="w", lw=2, bw_adjust=1)
+    
+    # Passing color=None to refline() uses the hue mapping
+    g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
+    
+    # Define and use a simple function to label the plot in axes coordinates
+    def label(x, color, label):
+        ax = plt.gca()
+        ax.text(0, .2, label, fontweight="bold", color=color,
+                ha="left", va="center", transform=ax.transAxes, fontsize=14)
+    
+    g.map(label, "Score")
     
     # Calculate means for vertical lines
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
     
+    # Add vertical lines for mean exactly as in static version
+    for ax, model in zip(g.axes.flat, order):
+        ax.axvline(mean_conf[mean_conf['Model'] == model]['mean'].values[0], 
+                   color='black', linestyle='--', ymin=0, ymax=0.5)
+    
+    # Set xlabel and formatting exactly as in static version
+    for ax in g.axes.flat:
+        ax.set_xlabel('Creativity score', fontsize=14)
+        for label in ax.get_xticklabels():
+            label.set_fontsize(12)
+    
+    # Remove axes details that don't play well with overlap
+    g.set_titles("")
+    # Set the subplots to overlap - less aggressive for web
+    g.figure.subplots_adjust(hspace=-.5)
+    g.set(yticks=[], ylabel="")
+    g.despine(bottom=True, left=True)
+    g.set(xlim=(20, 100))
+    
+    # Convert matplotlib figure to Plotly with proper aspect ratio
+    buf = io.BytesIO()
+    g.savefig(buf, format='png', dpi=100, bbox_inches='tight', 
+              facecolor='none', edgecolor='none')
+    buf.seek(0)
+    
+    # Convert to base64 for embedding in Plotly
+    img_b64 = base64.b64encode(buf.read()).decode()
+    plt.close(g.fig)  # Clean up matplotlib figure
+    
+    # Create Plotly figure with the seaborn image
     fig = go.Figure()
     
-    # Create ridge plot - reverse order for display (highest scores at top)
-    reversed_order = list(reversed(order))
-    for i, model in enumerate(reversed_order):
-        model_data = df[df['Model'] == model]['Score'].values
-        
-        if len(model_data) == 0:
-            continue
-            
-        # Create KDE using scipy with fewer points for performance
-        kde = stats.gaussian_kde(model_data, bw_method=1.0)
-        x_range = np.linspace(20, 100, 100)
-        density = kde(x_range)
-        
-        # Normalize density for ridge effect
-        density_normalized = density / density.max() * 0.8
-        y_offset = i * 1.2
-        
-        # Get color for this model from original order
-        original_idx = list(order).index(model)
-        model_color = colors[original_idx]
-        
-        # Add filled area using tonexty with baseline
-        fig.add_trace(go.Scatter(
-            x=[20, 100],
-            y=[y_offset, y_offset],
-            mode='lines',
-            line=dict(color='rgba(0,0,0,0)', width=0),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-        
-        fig.add_trace(go.Scatter(
-            x=x_range,
-            y=density_normalized + y_offset,
-            fill='tonexty',
-            fillcolor=model_color,
-            line=dict(color='white', width=2),
-            name=model,
-            showlegend=False,
-            hovertemplate=f'<b>{model}</b><br>Score: %{{x:.1f}}<extra></extra>'
-        ))
-        
-        # Add baseline line
-        fig.add_trace(go.Scatter(
-            x=[20, 100],
-            y=[y_offset, y_offset],
-            mode='lines',
-            line=dict(color=model_color, width=3),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-        
-        # Add mean line (vertical dashed line)
-        model_mean = mean_conf[mean_conf['Model'] == model]['mean'].values[0]
-        fig.add_trace(go.Scatter(
-            x=[model_mean, model_mean],
-            y=[y_offset, y_offset + 0.4],
-            mode='lines',
-            line=dict(color='black', width=2, dash='dash'),
-            showlegend=False,
-            hovertemplate=f'<b>{model}</b><br>Mean: {model_mean:.1f}<extra></extra>'
-        ))
-        
-        # Add model label
-        fig.add_annotation(
-            x=22,
-            y=y_offset + 0.2,
-            text=f'<b>{model}</b>',
-            showarrow=False,
-            font=dict(size=16, color=model_color),
-            xanchor='left'
+    # Add the image with proper sizing
+    fig.add_layout_image(
+        dict(
+            source=f"data:image/png;base64,{img_b64}",
+            xref="paper", yref="paper",
+            x=0, y=1,
+            sizex=1, sizey=1,
+            sizing="contain",  # Use contain instead of stretch
+            opacity=1,
+            layer="below"
         )
+    )
     
+    # Set up the layout to preserve aspect ratio
     fig.update_layout(
         title=dict(
             text='<b>Creativity Score Distribution by Model</b>',
@@ -111,22 +109,22 @@ def create_ridge_plot(results_df):
             x=0.5
         ),
         xaxis=dict(
-            title=dict(text='<b>Creativity score</b>', font=dict(size=16, color='white')),
-            tickfont=dict(size=14, color='white'),
-            range=[20, 100],
-            gridcolor='rgba(255,255,255,0.1)',
-            showgrid=False
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False,
+            range=[0, 1]
         ),
         yaxis=dict(
             showticklabels=False,
             showgrid=False,
-            zeroline=False
+            zeroline=False,
+            range=[0, 1]
         ),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white'),
-        height=len(reversed_order) * 80 + 100,
-        margin=dict(l=50, r=50, t=80, b=80)
+        height=len(order) * 60 + 120,  # Adjusted height
+        margin=dict(l=20, r=20, t=80, b=20)  # Tighter margins
     )
     
     return fig
