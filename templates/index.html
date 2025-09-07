@@ -6,6 +6,7 @@
     <title>Divergent Association Task - Research Visualizations</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
@@ -23,7 +24,7 @@
             <section class="plot-section">
                 <h2>Distribution Analysis</h2>
                 <p class="plot-description">
-                    Ridge plot showing the distribution of creativity scores across models, with mean indicators and overlapping density curves.
+                    Interactive ridge plot showing the distribution of creativity scores across models. Hover over any ridge to see detailed statistics.
                 </p>
                 <div id="ridge-plot" class="plot-container">
                     <div class="loading">Loading ridge plot...</div>
@@ -56,23 +57,192 @@
         </footer>
     </div>
 
+    <!-- Tooltip for ridge plot -->
+    <div id="ridge-tooltip" class="ridge-tooltip"></div>
+
     <script>
-        // Load ridge plot
-        fetch('/ridge_plot')
+        // Load interactive ridge plot with D3.js
+        fetch('/ridge_data')
             .then(response => response.json())
-            .then(data => {
+            .then(plotData => {
                 document.getElementById('ridge-plot').innerHTML = '';
-                Plotly.newPlot('ridge-plot', data.data, data.layout, {
-                    responsive: true,
-                    displayModeBar: true,
-                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d', 'autoScale2d'],
-                    displaylogo: false
-                });
+                createInteractiveRidgePlot(plotData);
             })
             .catch(error => {
                 document.getElementById('ridge-plot').innerHTML = '<div class="error">Error loading ridge plot</div>';
                 console.error('Error:', error);
             });
+
+        function createInteractiveRidgePlot(plotData) {
+            const container = d3.select("#ridge-plot");
+            const tooltip = d3.select("#ridge-tooltip");
+            const containerRect = container.node().getBoundingClientRect();
+
+            const margin = { top: 20, right: 30, bottom: 60, left: 120 };
+            const width = containerRect.width - margin.left - margin.right;
+            const height = Math.max(600, plotData.length * 60) - margin.top - margin.bottom;
+
+            const svg = container.append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .style("overflow", "visible")
+                .append("g")
+                .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+            // Scales
+            const x = d3.scaleLinear()
+                .domain([20, 100])
+                .range([0, width]);
+
+            const categories = plotData.map(d => d.category);
+            const y = d3.scaleBand()
+                .domain(categories)
+                .range([height, 0])
+                .paddingInner(0.1)
+                .paddingOuter(0.2);
+
+            const maxDensity = d3.max(plotData, d => d3.max(d.values, v => v.y));
+            const yValue = d3.scaleLinear()
+                .domain([0, maxDensity])
+                .range([0, -y.bandwidth() * 2]);
+
+            // Draw axes
+            svg.append("g")
+                .attr("transform", `translate(0, ${height})`)
+                .call(d3.axisBottom(x).ticks(8))
+                .selectAll("text")
+                .style("font-size", "12px")
+                .attr("fill", "var(--text-secondary)");
+
+            svg.append("g")
+                .call(d3.axisLeft(y).tickSize(0))
+                .select(".domain").remove();
+
+            svg.selectAll(".tick text")
+                .style("font-size", "12px")
+                .style("font-weight", "500")
+                .attr("fill", "var(--text-primary)");
+
+            svg.selectAll(".domain, .tick line").attr("stroke", "var(--border)");
+
+            // X-axis label
+            svg.append("text")
+                .attr("transform", `translate(${width/2}, ${height + 45})`)
+                .style("text-anchor", "middle")
+                .style("font-size", "14px")
+                .style("font-weight", "600")
+                .attr("fill", "var(--text-primary)")
+                .text("Creativity Score");
+
+            // Create area generator
+            const area = d3.area()
+                .x(d => x(d.x))
+                .y0(0)
+                .y1(d => yValue(d.y))
+                .curve(d3.curveBasis);
+
+            // Draw ridges
+            const ridges = svg.selectAll("g.ridge")
+                .data(plotData)
+                .enter()
+                .append("g")
+                .attr("class", "ridge")
+                .attr("transform", d => `translate(0, ${y(d.category) + y.bandwidth()})`);
+
+            ridges.append("path")
+                .attr("class", "ridge-path")
+                .datum(d => d)
+                .attr("d", d => area(d.values))
+                .style("fill", d => d.color + "CC") // Add transparency
+                .style("stroke", "var(--text-primary)")
+                .style("stroke-width", 1.5)
+                .style("cursor", "pointer")
+                .style("transition", "all 0.3s ease");
+
+            // Add mean lines
+            ridges.append("line")
+                .attr("class", "mean-line")
+                .attr("x1", d => x(d.mean))
+                .attr("x2", d => x(d.mean))
+                .attr("y1", 0)
+                .attr("y2", d => yValue(d3.max(d.values, v => v.y)) * 0.5)
+                .style("stroke", "var(--text-primary)")
+                .style("stroke-width", 2)
+                .style("stroke-dasharray", "5,5")
+                .style("opacity", 0.8);
+
+            // Interactivity
+            svg.on('mousemove', function(event) {
+                const pointer = d3.pointer(event, this);
+                const mouseY = pointer[1];
+
+                let closestCategory = null;
+                let minDistance = Infinity;
+                let activeData = null;
+
+                plotData.forEach(d => {
+                    const ridgeY = y(d.category) + y.bandwidth();
+                    const distance = Math.abs(mouseY - ridgeY);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestCategory = d.category;
+                        activeData = d;
+                    }
+                });
+
+                if (minDistance > y.bandwidth() * 1.5) {
+                    closestCategory = null;
+                    activeData = null;
+                }
+
+                // Update tooltip
+                if (activeData) {
+                    tooltip.html(`
+                        <div class="tooltip-content">
+                            <strong>${activeData.category}</strong><br>
+                            <strong>Mean:</strong> ${activeData.mean}<br>
+                            <strong>Std Dev:</strong> ${activeData.std}<br>
+                            <strong>SEM:</strong> ${activeData.sem}<br>
+                            <strong>Samples:</strong> ${activeData.samples}
+                        </div>
+                    `)
+                    .style("left", (event.pageX + 15) + "px")
+                    .style("top", (event.pageY - 28) + "px")
+                    .style("opacity", 1)
+                    .style("display", "block");
+                } else {
+                    tooltip.style("opacity", 0);
+                }
+
+                // Update ridge styles
+                ridges.each(function(d) {
+                    const isActive = (d.category === closestCategory);
+                    const path = d3.select(this).select('.ridge-path');
+                    const meanLine = d3.select(this).select('.mean-line');
+                    
+                    path.style('fill', d.color + (isActive ? "FF" : "CC"));
+                    path.style('stroke-width', isActive ? 3 : 1.5);
+                    meanLine.style('opacity', isActive ? 1 : 0.8);
+                    meanLine.style('stroke-width', isActive ? 3 : 2);
+
+                    if (isActive) {
+                        d3.select(this).raise();
+                    }
+                });
+            });
+
+            svg.on('mouseleave', function() {
+                tooltip.style("opacity", 0);
+                ridges.each(function(d) {
+                    d3.select(this).select('.ridge-path')
+                        .style('fill', d.color + "CC")
+                        .style('stroke-width', 1.5);
+                    d3.select(this).select('.mean-line')
+                        .style('opacity', 0.8)
+                        .style('stroke-width', 2);
+                });
+            });
+        }
 
         // Load bar plot
         fetch('/bar_plot')

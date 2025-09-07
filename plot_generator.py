@@ -6,12 +6,13 @@ from plotly.subplots import make_subplots
 from multiple_test import analyze_results
 import seaborn as sns
 from scipy import stats
+from scipy.stats import gaussian_kde
 import matplotlib.pyplot as plt
 import io
 import base64
 
-def create_ridge_plot(results_df):
-    """Create a ridge plot using seaborn exactly like the static version"""
+def create_ridge_data(results_df):
+    """Create ridge plot data for D3.js visualization"""
     # Filter data exactly as in original code
     df = results_df.loc[(results_df['Strategy']=='Original instructions') &
                         (results_df['Temperature']=='Mid') | (results_df['Temperature'].isnull())]
@@ -20,116 +21,59 @@ def create_ridge_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
-    # Get models, palette and order exactly as in static version
-    models = results_df['Model'].unique()
-    pal = sns.color_palette("rocket_r", len(models))
+    # Get order exactly as in static version (ascending = low to high scores)
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
     
-    # Set up matplotlib with dark theme for web
-    plt.style.use('dark_background')
+    # Get rocket_r colors exactly as in original
+    rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
     
-    # Initialize the FacetGrid object exactly as in static version
-    g = sns.FacetGrid(df, row="Model", hue="Model", aspect=12, height=0.8, 
-                      row_order=order, palette=pal, hue_order=order)
-    
-    # Make transparent background
-    for ax in g.axes.flat:
-        ax.set_facecolor('none')
-    
-    # Draw the densities exactly as in static version
-    g.map(sns.kdeplot, "Score",
-          bw_adjust=1, clip_on=False,
-          fill=True, alpha=0.8, linewidth=1.5)
-    g.map(sns.kdeplot, "Score", clip_on=False, color="w", lw=2, bw_adjust=1)
-    
-    # Passing color=None to refline() uses the hue mapping
-    g.refline(y=0, linewidth=2, linestyle="-", color=None, clip_on=False)
-    
-    # Define and use a simple function to label the plot in axes coordinates
-    def label(x, color, label):
-        ax = plt.gca()
-        ax.text(0, .2, label, fontweight="bold", color=color,
-                ha="left", va="center", transform=ax.transAxes, fontsize=14)
-    
-    g.map(label, "Score")
-    
-    # Calculate means for vertical lines
+    # Calculate statistics using existing analyze_results function
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
     
-    # Add vertical lines for mean exactly as in static version
-    for ax, model in zip(g.axes.flat, order):
-        ax.axvline(mean_conf[mean_conf['Model'] == model]['mean'].values[0], 
-                   color='black', linestyle='--', ymin=0, ymax=0.5)
+    ridge_data = []
     
-    # Set xlabel and formatting exactly as in static version
-    for ax in g.axes.flat:
-        ax.set_xlabel('Creativity score', fontsize=14)
-        for label in ax.get_xticklabels():
-            label.set_fontsize(12)
+    for i, model in enumerate(order):
+        model_data = df[df['Model'] == model]['Score'].dropna()
+        
+        if len(model_data) > 0:
+            # Create KDE for smooth density curve
+            kde = gaussian_kde(model_data)
+            x_range = np.linspace(20, 100, 200)  # Same range as original plot
+            density = kde(x_range)
+            
+            # Get color from rocket_r palette
+            color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+            color = rocket_r_colors[color_idx]
+            
+            # Special color for Human (100k) as in original
+            if model == 'Human (100k)':
+                color = "#F4FF5E"
+            
+            # Get stats from mean_conf
+            model_stats = mean_conf[mean_conf['Model'] == model]
+            mean_val = model_stats['mean'].values[0] if len(model_stats) > 0 else model_data.mean()
+            sem_val = model_stats['sem'].values[0] if len(model_stats) > 0 else model_data.sem()
+            std_val = model_stats['std'].values[0] if len(model_stats) > 0 else model_data.std()
+            
+            # Create density points for D3
+            density_points = []
+            for j, x_val in enumerate(x_range):
+                density_points.append({
+                    'x': float(x_val),
+                    'y': float(density[j])
+                })
+            
+            ridge_data.append({
+                'category': model,
+                'color': color,
+                'values': density_points,
+                'mean': round(float(mean_val), 2),
+                'std': round(float(std_val), 2),
+                'sem': round(float(sem_val), 2),
+                'samples': int(len(model_data))
+            })
     
-    # Remove axes details that don't play well with overlap
-    g.set_titles("")
-    # Set the subplots to overlap - more aggressive like original
-    g.figure.subplots_adjust(hspace=-.7)
-    g.set(yticks=[], ylabel="")
-    g.despine(bottom=True, left=True)
-    g.set(xlim=(20, 100))
-    
-    # Convert matplotlib figure to Plotly with proper aspect ratio and centering
-    buf = io.BytesIO()
-    g.savefig(buf, format='png', dpi=120, bbox_inches='tight', 
-              facecolor='none', edgecolor='none', pad_inches=0.1)
-    buf.seek(0)
-    
-    # Convert to base64 for embedding in Plotly
-    img_b64 = base64.b64encode(buf.read()).decode()
-    plt.close(g.fig)  # Clean up matplotlib figure
-    
-    # Create Plotly figure with the seaborn image
-    fig = go.Figure()
-    
-    # Add the image with proper sizing and centering
-    fig.add_layout_image(
-        dict(
-            source=f"data:image/png;base64,{img_b64}",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5,
-            sizex=0.95, sizey=0.95,
-            sizing="contain",  # Use contain to preserve aspect ratio
-            opacity=1,
-            layer="below",
-            xanchor="center",
-            yanchor="middle"
-        )
-    )
-    
-    # Set up the layout to preserve aspect ratio
-    fig.update_layout(
-        title=dict(
-            text='<b>Creativity Score Distribution by Model</b>',
-            font=dict(size=20, color='white'),
-            x=0.5
-        ),
-        xaxis=dict(
-            showticklabels=False,
-            showgrid=False,
-            zeroline=False,
-            range=[0, 1]
-        ),
-        yaxis=dict(
-            showticklabels=False,
-            showgrid=False,
-            zeroline=False,
-            range=[0, 1]
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white'),
-        height=len(order) * 70 + 140,  # Better height for overlapping ridges
-        margin=dict(l=30, r=30, t=90, b=30)  # Balanced margins for centering
-    )
-    
-    return fig
+    return ridge_data
 
 def create_horizontal_bar_plot(results_df):
     """Create horizontal bar plot exactly as in original code"""
