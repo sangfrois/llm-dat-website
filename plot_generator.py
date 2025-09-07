@@ -45,8 +45,8 @@ def create_ridge_data(results_df):
             x_range = np.linspace(global_min, global_max, 200)
             density = kde(x_range)
             
-            # Get color from rocket_r palette
-            color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+            # Get color from rocket_r palette (reversed so higher scores = brighter)
+            color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
             color = rocket_r_colors[color_idx]
             
             # Special color for Human (100k) as in original
@@ -102,7 +102,7 @@ def create_horizontal_bar_plot(results_df):
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
     colors = []
     for i, model in enumerate(order):
-        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+        color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
         colors.append(rocket_r_colors[color_idx])
     
     # Special color for Human (100k) as in original - EXACT SAME LOGIC
@@ -199,7 +199,7 @@ def create_heatmap_plot(results_df):
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
     colors = []
     for i, model in enumerate(order):
-        color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
+        color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
         colors.append(rocket_r_colors[color_idx])
     
     for i, model in enumerate(order):

@@ -146,9 +146,9 @@
                 .y1(d => yValue(d.y))
                 .curve(d3.curveBasis);
 
-            // Draw ridges
+            // Draw ridges (in reverse order so higher scores appear on top)
             const ridges = svg.selectAll("g.ridge")
-                .data(plotData)
+                .data(plotData.slice().reverse())
                 .enter()
                 .append("g")
                 .attr("class", "ridge")
@@ -161,7 +161,6 @@
                 .style("fill", d => d.color + "CC") // Add transparency
                 .style("stroke", "var(--text-primary)")
                 .style("stroke-width", 1.5)
-                .style("cursor", "pointer")
                 .style("transition", "all 0.3s ease");
 
             // Add mean lines
@@ -176,77 +175,66 @@
                 .style("stroke-dasharray", "5,5")
                 .style("opacity", 0.8);
 
-            // Interactivity
-            svg.on('mousemove', function(event) {
-                const pointer = d3.pointer(event, this);
-                const mouseY = pointer[1];
-
-                let closestCategory = null;
-                let minDistance = Infinity;
-                let activeData = null;
-
-                plotData.forEach(d => {
-                    const ridgeY = y(d.category) + y.bandwidth();
-                    const distance = Math.abs(mouseY - ridgeY);
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestCategory = d.category;
-                        activeData = d;
-                    }
-                });
-
-                if (minDistance > y.bandwidth() * 1.5) {
-                    closestCategory = null;
-                    activeData = null;
-                }
-
-                // Update tooltip
-                if (activeData) {
-                    tooltip.html(`
-                        <div class="tooltip-content">
-                            <strong>${activeData.category}</strong><br>
-                            <strong>Mean:</strong> ${activeData.mean}<br>
-                            <strong>Std Dev:</strong> ${activeData.std}<br>
-                            <strong>SEM:</strong> ${activeData.sem}<br>
-                            <strong>Samples:</strong> ${activeData.samples}
-                        </div>
-                    `)
-                    .style("left", (event.pageX + 15) + "px")
-                    .style("top", (event.pageY - 28) + "px")
-                    .style("opacity", 1)
-                    .style("display", "block");
-                } else {
-                    tooltip.style("opacity", 0);
-                }
-
-                // Update ridge styles
-                ridges.each(function(d) {
-                    const isActive = (d.category === closestCategory);
-                    const path = d3.select(this).select('.ridge-path');
-                    const meanLine = d3.select(this).select('.mean-line');
+            // Interactivity on y-axis labels
+            svg.selectAll(".tick text")
+                .style("cursor", "pointer")
+                .on('mouseenter', function(event, d) {
+                    const hoveredCategory = d3.select(this).text();
+                    const activeData = plotData.find(data => data.category === hoveredCategory);
                     
-                    path.style('fill', d.color + (isActive ? "FF" : "CC"));
-                    path.style('stroke-width', isActive ? 3 : 1.5);
-                    meanLine.style('opacity', isActive ? 1 : 0.8);
-                    meanLine.style('stroke-width', isActive ? 3 : 2);
+                    if (activeData) {
+                        // Show tooltip
+                        tooltip.html(`
+                            <div class="tooltip-content">
+                                <strong>${activeData.category}</strong><br>
+                                <strong>Mean:</strong> ${activeData.mean}<br>
+                                <strong>Std Dev:</strong> ${activeData.std}<br>
+                                <strong>SEM:</strong> ${activeData.sem}<br>
+                                <strong>Samples:</strong> ${activeData.samples}
+                            </div>
+                        `)
+                        .style("left", (event.pageX + 15) + "px")
+                        .style("top", (event.pageY - 28) + "px")
+                        .style("opacity", 1)
+                        .style("display", "block");
 
-                    if (isActive) {
-                        d3.select(this).raise();
+                        // Highlight the corresponding ridge
+                        ridges.each(function(d) {
+                            const isActive = (d.category === hoveredCategory);
+                            const path = d3.select(this).select('.ridge-path');
+                            const meanLine = d3.select(this).select('.mean-line');
+                            
+                            path.style('fill', d.color + (isActive ? "FF" : "CC"));
+                            path.style('stroke-width', isActive ? 3 : 1.5);
+                            meanLine.style('opacity', isActive ? 1 : 0.8);
+                            meanLine.style('stroke-width', isActive ? 3 : 2);
+
+                            if (isActive) {
+                                d3.select(this).raise();
+                            }
+                        });
+
+                        // Highlight the y-axis label
+                        d3.select(this).style('fill', 'var(--accent)').style('font-weight', 'bold');
                     }
-                });
-            });
+                })
+                .on('mouseleave', function() {
+                    // Hide tooltip
+                    tooltip.style("opacity", 0);
+                    
+                    // Reset all ridges
+                    ridges.each(function(d) {
+                        d3.select(this).select('.ridge-path')
+                            .style('fill', d.color + "CC")
+                            .style('stroke-width', 1.5);
+                        d3.select(this).select('.mean-line')
+                            .style('opacity', 0.8)
+                            .style('stroke-width', 2);
+                    });
 
-            svg.on('mouseleave', function() {
-                tooltip.style("opacity", 0);
-                ridges.each(function(d) {
-                    d3.select(this).select('.ridge-path')
-                        .style('fill', d.color + "CC")
-                        .style('stroke-width', 1.5);
-                    d3.select(this).select('.mean-line')
-                        .style('opacity', 0.8)
-                        .style('stroke-width', 2);
+                    // Reset y-axis label
+                    d3.select(this).style('fill', 'var(--text-primary)').style('font-weight', '500');
                 });
-            });
         }
 
         // Load bar plot
