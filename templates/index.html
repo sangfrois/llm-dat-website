@@ -80,7 +80,7 @@
 
             const margin = { top: 20, right: 30, bottom: 60, left: 120 };
             const width = containerRect.width - margin.left - margin.right;
-            const height = Math.max(600, plotData.length * 60) - margin.top - margin.bottom;
+            const height = Math.max(500, plotData.length * 40) - margin.top - margin.bottom;  // Reduced spacing for overlap
 
             const svg = container.append("svg")
                 .attr("width", width + margin.left + margin.right)
@@ -89,22 +89,27 @@
                 .append("g")
                 .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
+            // Calculate data-driven x-axis domain
+            const allXValues = plotData.flatMap(d => d.values.map(v => v.x));
+            const xMin = d3.min(allXValues);
+            const xMax = d3.max(allXValues);
+            
             // Scales
             const x = d3.scaleLinear()
-                .domain([20, 100])
+                .domain([xMin, xMax])
                 .range([0, width]);
 
             const categories = plotData.map(d => d.category);
             const y = d3.scaleBand()
                 .domain(categories)
                 .range([height, 0])
-                .paddingInner(0.1)
-                .paddingOuter(0.2);
+                .paddingInner(-0.3)  // Negative padding for overlap
+                .paddingOuter(0.1);
 
             const maxDensity = d3.max(plotData, d => d3.max(d.values, v => v.y));
             const yValue = d3.scaleLinear()
                 .domain([0, maxDensity])
-                .range([0, -y.bandwidth() * 2]);
+                .range([0, -y.bandwidth() * 3]);  // Increased height for better overlap
 
             // Draw axes
             svg.append("g")

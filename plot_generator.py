@@ -22,7 +22,7 @@ def create_ridge_data(results_df):
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
     # Get order exactly as in static version (ascending = low to high scores)
-    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
+    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=False).index
     
     # Get rocket_r colors exactly as in original
     rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
@@ -38,8 +38,15 @@ def create_ridge_data(results_df):
         if len(model_data) > 0:
             # Create KDE for smooth density curve
             kde = gaussian_kde(model_data)
-            x_range = np.linspace(20, 100, 200)  # Same range as original plot
-            density = kde(x_range)
+            # Use data-driven x-axis range with some padding
+            data_min = model_data.min()
+            data_max = model_data.max()
+            
+    # Calculate global range across all models for consistent x-axis
+    global_min = df['Score'].min() - 2
+    global_max = df['Score'].max() + 2
+    x_range = np.linspace(global_min, global_max, 200)
+    density = kde(x_range)
             
             # Get color from rocket_r palette
             color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
@@ -90,8 +97,8 @@ def create_horizontal_bar_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x[np.abs(x['Score'] - x['Score'].mean()) <= 3 * x['Score'].std()]).reset_index(drop=True)
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
-    # ASCENDING = LOW TO HIGH SCORES - maintain exact same order logic
-    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
+    # ASCENDING = LOW TO HIGH SCORES - maintain exact same order logic  
+    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=False).index
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
     
     # Create palette exactly as in original (rocket_r) - maintain color consistency
@@ -180,7 +187,7 @@ def create_heatmap_plot(results_df):
     df = df.groupby('Model').apply(lambda x: x.sample(min(len(x), 500), random_state=32)).reset_index(drop=True)
     
     # ASCENDING = LOW TO HIGH SCORES - maintain exact same order logic
-    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=True).index
+    order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=False).index
     mean_conf, pvals_table, tvals_table, cohen_d_table = analyze_results(df, 'Model', order)
     
     # Create subplot with bar plot and heatmap
