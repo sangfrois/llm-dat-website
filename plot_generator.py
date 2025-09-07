@@ -24,8 +24,11 @@ def create_ridge_data(results_df):
     # Get order exactly as in static version (ascending = low to high scores)
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=False).index
     
-    # Get rocket_r colors exactly as in original
-    rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
+    # Get icefire colors
+    icefire_cmap = sns.color_palette("icefire", as_cmap=True)
+    icefire_colors = [icefire_cmap(i/9) for i in range(10)]
+    # Convert to hex
+    icefire_hex = ['#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255)) for r, g, b, a in icefire_colors]
     
     # Calculate statistics using existing analyze_results function
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
@@ -45,9 +48,9 @@ def create_ridge_data(results_df):
             x_range = np.linspace(global_min, global_max, 200)
             density = kde(x_range)
             
-            # Get color from rocket_r palette (reversed so higher scores = brighter)
-            color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
-            color = rocket_r_colors[color_idx]
+            # Get color from icefire palette (reversed so higher scores = brighter)
+            color_idx = int((len(order)-1-i) * (len(icefire_hex)-1) / (len(order)-1))
+            color = icefire_hex[color_idx]
             
             # Special color for Human (100k) as in original
             if model == 'Human (100k)':
@@ -98,12 +101,14 @@ def create_horizontal_bar_plot(results_df):
     order = df.groupby('Model')['Score'].mean().dropna().sort_values(ascending=False).index
     mean_conf, _, _, _ = analyze_results(df, 'Model', order)
     
-    # Create palette exactly as in original (rocket_r) - maintain color consistency
-    rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
+    # Create palette using icefire colormap - maintain color consistency
+    icefire_cmap = sns.color_palette("icefire", as_cmap=True)
+    icefire_colors = [icefire_cmap(i/9) for i in range(10)]
+    icefire_hex = ['#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255)) for r, g, b, a in icefire_colors]
     colors = []
     for i, model in enumerate(order):
-        color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
-        colors.append(rocket_r_colors[color_idx])
+        color_idx = int((len(order)-1-i) * (len(icefire_hex)-1) / (len(order)-1))
+        colors.append(icefire_hex[color_idx])
     
     # Special color for Human (100k) as in original - EXACT SAME LOGIC
     final_colors = []
@@ -196,11 +201,13 @@ def create_heatmap_plot(results_df):
     )
     
     # Bar plot (left subplot) - maintain color consistency
-    rocket_r_colors = ['#03051A', '#1B0C42', '#4B0C6B', '#781C6D', '#A52C60', '#CF4446', '#ED6925', '#FB9A06', '#F7D03C', '#FCFFA4']
+    icefire_cmap = sns.color_palette("icefire", as_cmap=True)
+    icefire_colors = [icefire_cmap(i/9) for i in range(10)]
+    icefire_hex = ['#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255)) for r, g, b, a in icefire_colors]
     colors = []
     for i, model in enumerate(order):
-        color_idx = int((len(order)-1-i) * (len(rocket_r_colors)-1) / (len(order)-1))
-        colors.append(rocket_r_colors[color_idx])
+        color_idx = int((len(order)-1-i) * (len(icefire_hex)-1) / (len(order)-1))
+        colors.append(icefire_hex[color_idx])
     
     for i, model in enumerate(order):
         model_data = mean_conf[mean_conf['Model'] == model]
