@@ -32,21 +32,18 @@ def create_ridge_data(results_df):
     
     ridge_data = []
     
+    # Calculate global range across all models for consistent x-axis
+    global_min = df['Score'].min() - 2
+    global_max = df['Score'].max() + 2
+    
     for i, model in enumerate(order):
         model_data = df[df['Model'] == model]['Score'].dropna()
         
         if len(model_data) > 0:
             # Create KDE for smooth density curve
             kde = gaussian_kde(model_data)
-            # Use data-driven x-axis range with some padding
-            data_min = model_data.min()
-            data_max = model_data.max()
-            
-    # Calculate global range across all models for consistent x-axis
-    global_min = df['Score'].min() - 2
-    global_max = df['Score'].max() + 2
-    x_range = np.linspace(global_min, global_max, 200)
-    density = kde(x_range)
+            x_range = np.linspace(global_min, global_max, 200)
+            density = kde(x_range)
             
             # Get color from rocket_r palette
             color_idx = int(i * (len(rocket_r_colors)-1) / (len(order)-1))
